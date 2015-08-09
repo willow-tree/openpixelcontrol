@@ -29,5 +29,5 @@ bin/
 *.kate-swp
 
 # Mac files
-#.DS_Store
+*.DS_Store
 env/
