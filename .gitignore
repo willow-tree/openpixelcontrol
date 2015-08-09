@@ -27,3 +27,5 @@ bin/
 # Kate temporary files
 *~
 *.kate-swp
+
+env/
