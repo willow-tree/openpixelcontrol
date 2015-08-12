@@ -27,9 +27,9 @@ num_vines_per_branch = 5
 red = Color((255, 0, 0))
 green = Color((0, 255, 0))
 blue = Color((0, 0, 255))
-peachpuff = Color((255, 218, 185))
+gold = Color((255, 223, 0))
 orchid = Color((148, 0, 211))
-diagnostic_colors = [red, green, blue, peachpuff, orchid]
+diagnostic_colors = [red, green, blue, gold, orchid]
 
 #-----------------------------------------------
 # command line
@@ -189,8 +189,8 @@ def lava_lamp_pattern_simulation():
 #----------------------------------------------
 
 # Output to simulation. Uncomment the function calls below to output to the OpenGL simulator
-#output_simulation_basic(0)
-lava_lamp_pattern_simulation()
+output_simulation_basic(0)
+#lava_lamp_pattern_simulation()
 
 # Output to tree. Uncomment the function calls below to output to the tree
 #output_tree(0)
