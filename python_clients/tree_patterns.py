@@ -14,6 +14,7 @@ except ImportError:
 import opc
 import color_utils
 import numpy
+from colorutils import Color
 
 #----------------------------------------
 # Constants
@@ -21,6 +22,14 @@ import numpy
 num_vines = 40
 num_lights_per_vine = 34
 frames_per_second = 120
+num_vines_per_branch = 5
+
+red = Color((255, 0, 0))
+green = Color((0, 255, 0))
+blue = Color((0, 0, 255))
+peachpuff = Color((255, 218, 185))
+orchid = Color((148, 0, 211))
+diagnostic_colors = [red, green, blue, peachpuff, orchid]
 
 #-----------------------------------------------
 # command line
@@ -80,10 +89,7 @@ def output_simulation_basic(duration):
             for light in range(num_lights_per_vine):
                 # Change starting here for patterns
 
-                seed = random.uniform(0,1)
-                color = seed * 80
-                rgb = [color,color*3,color]
-                pixels.append(rgb)
+                pixels.append(diagnostic_colors[vine%num_vines_per_branch])
 
                 # End of pattern block
 
@@ -99,11 +105,7 @@ def output_tree(duration):
         for vine in range(num_vines):
             for light in range(num_lights_per_vine):
                 # Change starting here for patterns
-                seed = random.uniform(0,1)
-                color = seed * 30
-                rgb = [color,color*3,color]
-                pixels[vine][light] = rgb
-
+                pixels[vine][light] = diagnostic_colors[vine%num_vines_per_branch]
                 # End of pattern block
 
         # Output the lights
@@ -187,7 +189,7 @@ def lava_lamp_pattern_simulation():
 #----------------------------------------------
 
 # Output to simulation. Uncomment the function calls below to output to the OpenGL simulator
-# output_simulation_basic(0)
+#output_simulation_basic(0)
 lava_lamp_pattern_simulation()
 
 # Output to tree. Uncomment the function calls below to output to the tree
