@@ -23,6 +23,7 @@ num_vines = 40
 num_lights_per_vine = 34
 frames_per_second = 120
 num_vines_per_branch = 5
+total_num_lights = num_vines*num_lights_per_vine
 
 red = Color((255, 0, 0))
 green = Color((0, 255, 0))
@@ -65,7 +66,9 @@ coordinates = numpy.zeros((num_vines,num_lights_per_vine), dtype=numpy.object)
 
 for index, item in enumerate(json.load(open(options.layout))):
     if 'point' in item:
-        coordinates[int(index/num_lights_per_vine)][index%num_lights_per_vine] = (tuple(item['point']))
+        vine_index = int(index/num_lights_per_vine)
+        light_index = index%num_lights_per_vine  
+        coordinates[vine_index][light_index] = (tuple(item['point']))
 
 #----------------------------------------
 # connect to server
@@ -78,41 +81,44 @@ else:
 print
 
 #----------------------------------------
-# pattern output
+# Diagnostic patterns
 
-# Basic function to output to simulator, 1 channel
+# Basic function to output diagnostic pattern to simulator, 1 channel
 # Copy this function and replace between the comment blocks below to alter the pattern
-def output_simulation_basic(duration):
+def output_diagnostic_simulation(duration):
     while True:
         pixels = []
         for vine in range(num_vines):
             for light in range(num_lights_per_vine):
                 # Change starting here for patterns
-
+                # Diagnostic pattern displays 5 different colors per branch (each vine is a different color),
+                # replicated across all 8 branches.
                 pixels.append(diagnostic_colors[vine%num_vines_per_branch])
-
                 # End of pattern block
 
         # Output the lights
         client.put_pixels(pixels, channel = 0)
         time.sleep(1/frames_per_second)
 
-# Basic function to output to tree, 40 channels
+# Basic function to diagnostic pattern to tree, 40 channels
 # Copy this function and replace between the comment blocks to alter the pattern
-def output_tree(duration):
+def output_diagnostic_tree(duration):
     while True:
         pixels = numpy.zeros((num_vines,num_lights_per_vine), dtype=numpy.object)
-        for vine in range(num_vines):
-            for light in range(num_lights_per_vine):
-                # Change starting here for patterns
-                pixels[vine][light] = diagnostic_colors[vine%num_vines_per_branch]
-                # End of pattern block
+        for index in range(total_num_lights):
+            vine_index = int(index/num_lights_per_vine)
+            light_index = index%num_lights_per_vine  
+
+            # Change starting here for patterns
+            # Diagnostic pattern displays 5 different colors per branch (each vine is a different color),
+            # replicated across all 8 branches.
+            pixels[vine_index][light_index] = diagnostic_colors[vine_index%num_vines_per_branch]
+            # End of pattern block
 
         # Output the lights
         for channel in range(num_vines):
-            client.put_pixels(pixels[channel], channel = channel)
+            client.put_pixels(pixels[channel,:].ravel(), channel = channel)
         time.sleep(1/frames_per_second)
-
 #-------------------------------------------------------------------------------
 # Lava lamp color function
 
@@ -176,7 +182,7 @@ def lava_lamp_pixel_color(t, coord, ii, n_pixels, random_values):
     return (r*256, g*256, b*256)
 
 def lava_lamp_pattern_simulation():
-    n_pixels = num_vines*num_lights_per_vine
+    n_pixels = total_num_lights
     random_values = [random.random() for ii in range(n_pixels)]
     start_time = time.time()
     pixels = []
@@ -189,8 +195,8 @@ def lava_lamp_pattern_simulation():
 #----------------------------------------------
 
 # Output to simulation. Uncomment the function calls below to output to the OpenGL simulator
-output_simulation_basic(0)
-#lava_lamp_pattern_simulation()
+#output_diagnostic_simulation(0)
+lava_lamp_pattern_simulation()
 
 # Output to tree. Uncomment the function calls below to output to the tree
-#output_tree(0)
+#output_diagnostic_tree(0)
