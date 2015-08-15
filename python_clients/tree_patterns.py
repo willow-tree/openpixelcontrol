@@ -14,23 +14,38 @@ except ImportError:
 import opc
 import color_utils
 import numpy
+import math
 from colorutils import Color
 
 #----------------------------------------
 # Constants
-
 num_vines = 40
 num_lights_per_vine = 34
 frames_per_second = 120
 num_vines_per_branch = 5
 total_num_lights = num_vines*num_lights_per_vine
 
+# RGB default colors for diagnostics
 red = Color((255, 0, 0))
 green = Color((0, 255, 0))
 blue = Color((0, 0, 255))
 gold = Color((255, 223, 0))
 orchid = Color((148, 0, 211))
 diagnostic_colors = [red, green, blue, gold, orchid]
+
+#----------------------------------------
+# Common helper methods
+def output_to_tree(pixels):
+    for channel in range(num_vines):
+        client.put_pixels(pixels[channel,:].ravel(), channel = channel)
+    time.sleep(1/frames_per_second) 
+
+def output_to_simulation(pixels):
+    client.put_pixels(pixels, channel = 0)
+    time.sleep(1/frames_per_second)
+
+def initialize_tree_pixels():
+    return numpy.zeros((num_vines,num_lights_per_vine), dtype=numpy.object)
 
 #-----------------------------------------------
 # command line
@@ -89,22 +104,20 @@ def output_diagnostic_simulation(duration):
     while True:
         pixels = []
         for vine in range(num_vines):
-            for light in range(num_lights_per_vine):
+            for light in range(num_lights_per_vine):            
                 # Change starting here for patterns
                 # Diagnostic pattern displays 5 different colors per branch (each vine is a different color),
                 # replicated across all 8 branches.
                 pixels.append(diagnostic_colors[vine%num_vines_per_branch])
-                # End of pattern block
 
         # Output the lights
-        client.put_pixels(pixels, channel = 0)
-        time.sleep(1/frames_per_second)
+        output_to_simulation(pixels)
 
 # Basic function to diagnostic pattern to tree, 40 channels
 # Copy this function and replace between the comment blocks to alter the pattern
 def output_diagnostic_tree(duration):
     while True:
-        pixels = numpy.zeros((num_vines,num_lights_per_vine), dtype=numpy.object)
+        pixels = initialize_tree_pixels()
         for index in range(total_num_lights):
             vine_index = int(index/num_lights_per_vine)
             light_index = index%num_lights_per_vine  
@@ -116,9 +129,7 @@ def output_diagnostic_tree(duration):
             # End of pattern block
 
         # Output the lights
-        for channel in range(num_vines):
-            client.put_pixels(pixels[channel,:].ravel(), channel = channel)
-        time.sleep(1/frames_per_second)
+        output_to_tree(pixels)
 #-------------------------------------------------------------------------------
 # Lava lamp color function
 
@@ -182,21 +193,79 @@ def lava_lamp_pixel_color(t, coord, ii, n_pixels, random_values):
     return (r*256, g*256, b*256)
 
 def lava_lamp_pattern_simulation():
-    n_pixels = total_num_lights
-    random_values = [random.random() for ii in range(n_pixels)]
+    random_values = [random.random() for ii in range(total_num_lights)]
     start_time = time.time()
     pixels = []
 
     while True:
         t = time.time() - start_time
-        pixels = [lava_lamp_pixel_color(t*0.6, coord, ii, n_pixels, random_values) for ii, coord in enumerate(coordinates.flat)]
-        client.put_pixels(pixels, channel = 0)
-        time.sleep(1/frames_per_second)
+        pixels = [lava_lamp_pixel_color(t*0.6, coord, ii, total_num_lights, random_values) for ii, coord in enumerate(coordinates.flat)]
+        output_to_simulation(pixels)
+
+def lava_lamp_pattern_tree():
+    random_values = [random.random() for ii in range(total_num_lights)]
+    start_time = time.time()
+    pixels = initialize_tree_pixels()
+
+    while True:
+        t = time.time() - start_time
+        for index, coord in enumerate(coordinates.flat):
+            vine_index = int(index/num_lights_per_vine)
+            light_index = index%num_lights_per_vine 
+            pixels[vine_index][light_index] = lava_lamp_pixel_color(t*0.6, coord, index, total_num_lights, random_values)
+        output_to_tree(pixels)
 #----------------------------------------------
+# Raver plaid
+def raver_plaid_tree():
+    # how many sine wave cycles are squeezed into our n_pixels
+    # 24 happens to create nice diagonal stripes on the wall layout
+    freq_r = 30
+    freq_g = 30
+    freq_b = 30
+
+    # how many seconds the color sine waves take to shift through a complete cycle
+    speed_r = 7
+    speed_g = -13
+    speed_b = 19
+
+    start_time = time.time()
+    sub_lights_num = num_lights_per_vine*num_vines_per_branch*2
+    while True:
+        pixels = []
+        t = time.time() - start_time
+        for index in range(4):
+            sub_pixels = []
+
+            for ii in range(sub_lights_num):
+                pct = ii / sub_lights_num
+                # diagonal black stripes
+                pct_jittered = (pct * 77) % 37
+                blackstripes = color_utils.cos(pct_jittered, offset=t*0.05, period=1, minn=-1.5, maxx=1.5)
+                blackstripes_offset = color_utils.cos(t, offset=0.9, period=60, minn=-0.5, maxx=3)
+                blackstripes = color_utils.clamp(blackstripes + blackstripes_offset, 0, 1)
+                # 3 sine waves for r, g, b which are out of sync with each other
+                r = blackstripes * color_utils.remap(math.cos((t/speed_r + pct*freq_r)*math.pi*2), -1, 1, 0, 256)
+                g = blackstripes * color_utils.remap(math.cos((t/speed_g + pct*freq_g)*math.pi*2), -1, 1, 0, 256)
+                b = blackstripes * color_utils.remap(math.cos((t/speed_b + pct*freq_b)*math.pi*2), -1, 1, 0, 256)
+                sub_pixels.append((r, g, b))
+            
+            current_pixels_size = len(pixels)
+            current_sub_pixel_size = len(sub_pixels)
+
+            sub_first_half = sub_pixels[:int(current_sub_pixel_size/2)]
+            sub_second_half = sub_pixels[int(current_sub_pixel_size/2):]
+
+            for x in sub_first_half:
+                pixels.insert(int(current_pixels_size/2), x)
+            pixels.extend(sub_second_half)
+        client.put_pixels(pixels, channel=0)
+        time.sleep(1 / frames_per_second)
 
 # Output to simulation. Uncomment the function calls below to output to the OpenGL simulator
 #output_diagnostic_simulation(0)
-lava_lamp_pattern_simulation()
+#lava_lamp_pattern_simulation()
+raver_plaid_tree()
 
 # Output to tree. Uncomment the function calls below to output to the tree
 #output_diagnostic_tree(0)
+#lava_lamp_pattern_tree()
